@@ -7,11 +7,14 @@ from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from jegeo import theme
+from jegeo.modules.breach_check import BreachCheckModule
 from jegeo.modules.crypto_toolkit import CryptoToolkitModule
 from jegeo.modules.hash_id import HashIdModule
 from jegeo.modules.host_recon import HostReconModule
 from jegeo.modules.network_scanner import NetworkScannerModule
+from jegeo.modules.osint_intel import OsintIntelModule
 from jegeo.modules.password_audit import PasswordAuditModule
+from jegeo.modules.settings_panel import SettingsModule
 from jegeo.modules.steg_tool import StegToolModule
 from jegeo.modules.sys_recon import SysReconModule
 from jegeo.modules.wifi_recon import WifiReconModule
@@ -23,11 +26,14 @@ MODULE_CLASSES = [
     NetworkScannerModule,
     HostReconModule,
     WifiReconModule,
+    OsintIntelModule,
+    BreachCheckModule,
     SysReconModule,
     CryptoToolkitModule,
     HashIdModule,
     PasswordAuditModule,
     StegToolModule,
+    SettingsModule,
 ]
 
 

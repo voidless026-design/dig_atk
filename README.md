@@ -14,18 +14,31 @@ desktop.
 
 ## What's inside
 
-A boot sequence, a HUD-styled dashboard, and eight modules:
+A boot sequence, a HUD-styled dashboard, and eleven modules — the first
+three (plus **OSINT Intel**) are *local/passive*, everything under
+**Online Intelligence** below talks to a public API over the internet:
 
 | Module | What it does |
 |---|---|
 | **Network Scanner** | Threaded TCP connect-scan of a host — common ports or a custom range/list. |
-| **Host Recon** | Forward/reverse DNS, WHOIS, and traceroute for a domain or IP. |
+| **Host Recon** | Forward/reverse DNS, WHOIS, and traceroute for a domain or IP, via local system tools. |
 | **Wi-Fi Recon** | Lists visible Wi-Fi networks and current link status via `nmcli` (read-only, no association or deauth). |
 | **Rig Status** | Local machine telemetry — CPU, memory, disks, network interfaces, uptime. |
 | **Crypto Toolkit** | Base64 / hex / ROT13 / XOR, plus password-based AES-256-GCM encrypt/decrypt. |
 | **Hash ID / Digest** | Generate digests (MD5/SHA-family/BLAKE2), fingerprint an unknown hash's likely format, or check it against a small built-in common-password sample. |
 | **Password Audit** | Fully offline entropy/pattern analysis and illustrative crack-time estimates for a password you type in. |
 | **Steganography** | Hide or reveal a text message inside a PNG using LSB steganography. |
+
+### Online Intelligence (OSINT)
+
+These reach out to the internet — see [Ethics / scope](#ethics--scope)
+below before pointing them at anything.
+
+| Module | What it does |
+|---|---|
+| **OSINT Intel** | Online counterpart to Host Recon: RDAP WHOIS (no local `whois` binary needed), IP geolocation & ASN/ISP (via [ipwho.is](https://ipwho.is)), subdomain enumeration via certificate-transparency logs ([crt.sh](https://crt.sh)), and an optional Shodan host lookup if you supply your own API key. |
+| **Breach Check** | Checks a password against HaveIBeenPwned's Pwned Passwords dataset using k-anonymity — only a 5-character SHA-1 prefix is ever sent, so the real password never leaves your machine. |
+| **Settings** | Local-only storage for the optional Shodan API key (`~/.config/jegeo/settings.json`, owner-only permissions). Nothing here is transmitted by the panel itself. |
 
 Every module streams its output into a color-coded console with the same
 "operator console" feel as the boot sequence, and every scan/lookup runs on
@@ -34,14 +47,20 @@ button.
 
 ## Ethics / scope
 
-These are legitimate, dual-use security and networking utilities — the
-kind you'd find in any pentesting distro — presented through an immersive
-UI, **not** exploit tooling. Only point the Network Scanner, Host Recon, or
-Wi-Fi Recon modules at systems and networks **you own or are explicitly
-authorized to test.** The Hash ID and Password Audit modules ship with a
+These are legitimate, dual-use security and networking/OSINT utilities —
+the kind you'd find in any pentesting distro — presented through an
+immersive UI, **not** exploit tooling. Only point the Network Scanner,
+Host Recon, Wi-Fi Recon, or OSINT Intel modules at systems, domains, and
+networks **you own or are explicitly authorized to test.** The online
+modules send the target you enter (and, for Shodan, your API key) to
+third-party services (rdap.org, ipwho.is, crt.sh, haveibeenpwned.com,
+api.shodan.io) — each module's in-app notice banner says exactly what
+leaves the machine. The Hash ID and Password Audit modules ship with a
 small (a few hundred entries) hand-written sample of common passwords for
 demonstrating *why* weak secrets are weak — it is not a real
-credential-cracking wordlist.
+credential-cracking wordlist. Shodan access uses your own account and its
+own terms/quota; get a key at [shodan.io](https://www.shodan.io) if you
+want that check enabled.
 
 ## Install (Fedora)
 
@@ -79,6 +98,8 @@ jegeo/
   core/
     worker.py             # QThread task runner (keeps the UI responsive)
     wordlist.py           # small sample common-password list
+    http.py                # shared requests-based GET helper (timeout + UA)
+    settings.py             # local JSON API-key store (~/.config/jegeo/settings.json)
   widgets/
     boot_screen.py         # animated startup sequence
     hud_overlay.py          # corner brackets + scanline sweep
@@ -90,11 +111,14 @@ jegeo/
     network_scanner.py
     host_recon.py
     wifi_recon.py
+    osint_intel.py           # online: RDAP / geolocation / crt.sh / Shodan
+    breach_check.py          # online: HIBP Pwned Passwords
     sys_recon.py
     crypto_toolkit.py
     hash_id.py
     password_audit.py
     steg_tool.py
+    settings_panel.py        # local Shodan API key entry
 scripts/install-fedora.sh
 ```
 
