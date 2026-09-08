@@ -14,9 +14,11 @@ desktop.
 
 ## What's inside
 
-A boot sequence, a HUD-styled dashboard, and eleven modules — the first
-three (plus **OSINT Intel**) are *local/passive*, everything under
-**Online Intelligence** below talks to a public API over the internet:
+A boot sequence, a HUD-styled dashboard, and twelve modules — the local
+tools below run entirely offline against your own machine, network, or
+files; everything under **Online Intelligence** talks to a public API
+over the internet. Every module can also **EXPORT** its console output
+to a timestamped log file.
 
 | Module | What it does |
 |---|---|
@@ -36,9 +38,10 @@ below before pointing them at anything.
 
 | Module | What it does |
 |---|---|
-| **OSINT Intel** | Online counterpart to Host Recon: RDAP WHOIS (no local `whois` binary needed), IP geolocation & ASN/ISP (via [ipwho.is](https://ipwho.is)), subdomain enumeration via certificate-transparency logs ([crt.sh](https://crt.sh)), and an optional Shodan host lookup if you supply your own API key. |
+| **OSINT Intel** | Online counterpart to Host Recon: RDAP WHOIS (no local `whois` binary needed), IP geolocation & ASN/ISP (via [ipwho.is](https://ipwho.is)), subdomain enumeration via certificate-transparency logs ([crt.sh](https://crt.sh)), plus optional Shodan host lookup and [AbuseIPDB](https://www.abuseipdb.com) reputation scoring if you supply your own API keys. |
+| **Username Recon** | Sherlock/theHarvester-style public footprint check — tests whether a username has a public profile on ~10 major platforms (GitHub, GitLab, Steam, YouTube, npm, PyPI, Docker Hub, Keybase, Hacker News, Dev.to) via ordinary HTTP requests. No login, no scraping beyond "does a profile exist here." |
 | **Breach Check** | Checks a password against HaveIBeenPwned's Pwned Passwords dataset using k-anonymity — only a 5-character SHA-1 prefix is ever sent, so the real password never leaves your machine. |
-| **Settings** | Local-only storage for the optional Shodan API key (`~/.config/jegeo/settings.json`, owner-only permissions). Nothing here is transmitted by the panel itself. |
+| **Settings** | Local-only storage for the optional Shodan and AbuseIPDB API keys (`~/.config/jegeo/settings.json`, owner-only permissions). Nothing here is transmitted by the panel itself. |
 
 Every module streams its output into a color-coded console with the same
 "operator console" feel as the boot sequence, and every scan/lookup runs on
@@ -50,17 +53,24 @@ button.
 These are legitimate, dual-use security and networking/OSINT utilities —
 the kind you'd find in any pentesting distro — presented through an
 immersive UI, **not** exploit tooling. Only point the Network Scanner,
-Host Recon, Wi-Fi Recon, or OSINT Intel modules at systems, domains, and
-networks **you own or are explicitly authorized to test.** The online
-modules send the target you enter (and, for Shodan, your API key) to
-third-party services (rdap.org, ipwho.is, crt.sh, haveibeenpwned.com,
-api.shodan.io) — each module's in-app notice banner says exactly what
-leaves the machine. The Hash ID and Password Audit modules ship with a
-small (a few hundred entries) hand-written sample of common passwords for
+Host Recon, Wi-Fi Recon, OSINT Intel, or Username Recon modules at
+systems, domains, accounts, and networks **you own or are explicitly
+authorized to research.** The online modules send the target you enter
+(and, for Shodan/AbuseIPDB, your API key) to third-party services
+(rdap.org, ipwho.is, crt.sh, haveibeenpwned.com, api.shodan.io,
+api.abuseipdb.com, and the platforms Username Recon probes) — each
+module's in-app notice banner says exactly what leaves the machine.
+Username Recon deliberately stops at "does a public profile exist" via
+ordinary HTTP requests — it does not scrape search engines, aggregate
+data-broker/people-search sites, or pull private data (friends lists,
+posts, DMs). The Hash ID and Password Audit modules ship with a small (a
+few hundred entries) hand-written sample of common passwords for
 demonstrating *why* weak secrets are weak — it is not a real
-credential-cracking wordlist. Shodan access uses your own account and its
-own terms/quota; get a key at [shodan.io](https://www.shodan.io) if you
-want that check enabled.
+credential-cracking wordlist. Shodan and AbuseIPDB access uses your own
+account and its own terms/quota; get keys at
+[shodan.io](https://www.shodan.io) and
+[abuseipdb.com](https://www.abuseipdb.com) if you want those checks
+enabled.
 
 ## Install (Fedora)
 
@@ -107,18 +117,19 @@ jegeo/
     module_button.py        # sidebar entry
     terminal_output.py      # color-coded console widget
   modules/
-    base.py                 # shared module chrome (header, controls, console, execute/abort)
+    base.py                 # shared module chrome (header, controls, console, execute/abort/export)
     network_scanner.py
     host_recon.py
     wifi_recon.py
-    osint_intel.py           # online: RDAP / geolocation / crt.sh / Shodan
+    osint_intel.py           # online: RDAP / geolocation / crt.sh / Shodan / AbuseIPDB
+    username_recon.py        # online: public profile footprint check
     breach_check.py          # online: HIBP Pwned Passwords
     sys_recon.py
     crypto_toolkit.py
     hash_id.py
     password_audit.py
     steg_tool.py
-    settings_panel.py        # local Shodan API key entry
+    settings_panel.py        # local Shodan / AbuseIPDB API key entry
 scripts/install-fedora.sh
 ```
 
@@ -128,7 +139,10 @@ Subclass `jegeo.modules.base.BaseModule`, implement `build_controls()`
 (your input widgets) and `make_task()` (returns a `task(emit, is_cancelled)`
 callable that does the work off the GUI thread, calling `emit(text, level)`
 to stream output — levels are `info`, `meta`, `warn`, `error`, `success`,
-`cyan`), then add the class to `MODULE_CLASSES` in `jegeo/app.py`.
+`cyan`), then add the class to `MODULE_CLASSES` in `jegeo/app.py`. Every
+module gets EXECUTE/ABORT/EXPORT and the console for free from
+`BaseModule` — EXPORT saves the console's current plain-text contents to a
+file the user picks, no per-module work required.
 
 ## License
 

@@ -17,6 +17,7 @@ from jegeo.modules.password_audit import PasswordAuditModule
 from jegeo.modules.settings_panel import SettingsModule
 from jegeo.modules.steg_tool import StegToolModule
 from jegeo.modules.sys_recon import SysReconModule
+from jegeo.modules.username_recon import UsernameReconModule
 from jegeo.modules.wifi_recon import WifiReconModule
 from jegeo.widgets.boot_screen import BootScreen
 from jegeo.widgets.dashboard import Dashboard
@@ -27,6 +28,7 @@ MODULE_CLASSES = [
     HostReconModule,
     WifiReconModule,
     OsintIntelModule,
+    UsernameReconModule,
     BreachCheckModule,
     SysReconModule,
     CryptoToolkitModule,

@@ -7,9 +7,12 @@ inputs) and ``make_task()`` (the actual work, run off the GUI thread).
 """
 from __future__ import annotations
 
+import datetime
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QFileDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
+    QVBoxLayout, QWidget,
 )
 
 from jegeo.core.worker import TaskRunner
@@ -90,11 +93,14 @@ class BaseModule(QWidget):
         self.abort_btn.setProperty("role", "danger")
         self.abort_btn.setEnabled(False)
         self.abort_btn.clicked.connect(self._abort)
+        self.export_btn = _ActionButton("⇩ EXPORT")
+        self.export_btn.clicked.connect(self._export)
         self.status_lbl = QLabel("STANDBY")
         self.status_lbl.setStyleSheet("color: #5f8b90; letter-spacing: 2px; font-size: 11px;")
         self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         action_row.addWidget(self.execute_btn)
         action_row.addWidget(self.abort_btn)
+        action_row.addWidget(self.export_btn)
         action_row.addStretch(1)
         action_row.addWidget(self.status_lbl)
         root.addLayout(action_row)
@@ -147,6 +153,27 @@ class BaseModule(QWidget):
         self.abort_btn.setEnabled(False)
         self.status_lbl.setText("STANDBY")
         self.status_lbl.setStyleSheet("color: #5f8b90; letter-spacing: 2px; font-size: 11px;")
+
+    def _export(self):
+        text = self.console.toPlainText()
+        if not text.strip():
+            self.console.append_line("nothing to export yet — run the module first", "warn")
+            return
+        slug = self.display_name.lower().replace(" ", "_").replace("/", "-")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"jegeo_{slug}_{ts}.log"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export output", default_name, "Log files (*.log *.txt);;All files (*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+        except OSError as exc:
+            self.console.append_line(f"export failed: {exc}", "error")
+            return
+        self.console.append_line(f"exported to {path}", "success")
 
 
 class _ActionButton(QPushButton):

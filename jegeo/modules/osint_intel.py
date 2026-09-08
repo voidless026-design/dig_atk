@@ -20,6 +20,7 @@ RDAP_IP_URL = "https://rdap.org/ip/{}"
 GEO_URL = "https://ipwho.is/{}"
 CRTSH_URL = "https://crt.sh/"
 SHODAN_HOST_URL = "https://api.shodan.io/shodan/host/{}"
+ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 
 
 def is_ip(value: str) -> bool:
@@ -54,8 +55,8 @@ def dedupe_cert_names(rows: list[dict]) -> list[str]:
 class OsintIntelModule(BaseModule):
     display_name = "OSINT Intel"
     glyph = "⌖"
-    tagline = "Online WHOIS / geolocation / subdomains / Shodan"
-    notice = "Sends the target to public third-party APIs (rdap.org, ipwho.is, crt.sh, optionally Shodan) — only look up things you're authorized to research."
+    tagline = "Online WHOIS / geolocation / subdomains / Shodan / AbuseIPDB"
+    notice = "Sends the target to public third-party APIs (rdap.org, ipwho.is, crt.sh, optionally Shodan/AbuseIPDB) — only look up things you're authorized to research."
 
     def build_controls(self) -> QWidget:
         wrapper = QWidget()
@@ -77,7 +78,9 @@ class OsintIntelModule(BaseModule):
         self.chk_subs.setChecked(True)
         self.chk_shodan = QCheckBox("Shodan host lookup (needs your own API key — see Settings)")
         self.chk_shodan.setChecked(False)
-        for c in (self.chk_rdap, self.chk_geo, self.chk_subs, self.chk_shodan):
+        self.chk_abuseipdb = QCheckBox("AbuseIPDB reputation check (needs your own API key — see Settings)")
+        self.chk_abuseipdb.setChecked(False)
+        for c in (self.chk_rdap, self.chk_geo, self.chk_subs, self.chk_shodan, self.chk_abuseipdb):
             outer.addWidget(c)
 
         return wrapper
@@ -90,7 +93,9 @@ class OsintIntelModule(BaseModule):
         do_geo = self.chk_geo.isChecked()
         do_subs = self.chk_subs.isChecked()
         do_shodan = self.chk_shodan.isChecked()
+        do_abuseipdb = self.chk_abuseipdb.isChecked()
         shodan_key = settings.get("shodan_api_key", "")
+        abuseipdb_key = settings.get("abuseipdb_api_key", "")
         target_is_ip = is_ip(target)
 
         def task(emit, is_cancelled):
@@ -203,6 +208,38 @@ class OsintIntelModule(BaseModule):
                         hostnames = data.get("hostnames") or []
                         if hostnames:
                             emit(f"  hostnames: {', '.join(hostnames)}", "info")
+
+            if is_cancelled():
+                return
+
+            if do_abuseipdb:
+                emit("== ABUSEIPDB REPUTATION ==", "cyan")
+                if not abuseipdb_key:
+                    emit("  no AbuseIPDB API key configured — add one in the Settings module", "warn")
+                elif not resolved_ip:
+                    emit("  no IP available to query", "warn")
+                else:
+                    try:
+                        data = http.get_json(
+                            ABUSEIPDB_URL,
+                            params={"ipAddress": resolved_ip, "maxAgeInDays": 90},
+                            headers={"Key": abuseipdb_key, "Accept": "application/json"},
+                        )
+                    except Exception as exc:
+                        emit(f"  AbuseIPDB lookup failed: {exc}", "error")
+                    else:
+                        d = data.get("data") or {}
+                        score = d.get("abuseConfidenceScore", 0)
+                        reports = d.get("totalReports", 0)
+                        level = "error" if score >= 50 else ("warn" if score >= 10 else "success")
+                        emit(f"  abuse confidence score: {score}/100  ({reports} report(s))", level)
+                        emit(
+                            f"  country: {d.get('countryCode', '?')}  isp: {d.get('isp', '?')}  "
+                            f"usage: {d.get('usageType', '?')}", "info",
+                        )
+                        last = d.get("lastReportedAt")
+                        if last:
+                            emit(f"  last reported: {last}", "meta")
 
             emit("OSINT sweep complete", "success")
 
