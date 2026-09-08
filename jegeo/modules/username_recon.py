@@ -15,6 +15,15 @@ from PySide6.QtWidgets import QFormLayout, QLineEdit, QWidget
 from jegeo.core import http
 from jegeo.modules.base import BaseModule
 
+# Anti-bot / CDN challenge pages some sites return with HTTP 200 for *any*
+# URL, real or not (Fastly "Client Challenge", Cloudflare "Just a moment",
+# etc.). A 200 carrying one of these is not a real profile page, so it's
+# reported as "unknown" rather than a false "found".
+CHALLENGE_MARKERS = (
+    "client challenge", "just a moment", "attention required",
+    "checking your browser", "are you a human", "captcha",
+)
+
 # (platform name, profile URL template, check mode, "not found" marker)
 #   mode "status"      -> HTTP 200 = found, HTTP 404 = not found, else unknown
 #   mode "text_absent" -> HTTP 200 and marker missing from body = found;
@@ -38,8 +47,11 @@ def check_platform(name: str, template: str, mode: str, marker: str | None, user
     status, body = http.probe(url)
     if status is None:
         return name, url, "unknown", "request failed"
+    challenged = any(m in body.lower() for m in CHALLENGE_MARKERS)
     if mode == "status":
         if status == 200:
+            if challenged:
+                return name, url, "unknown", "blocked by an anti-bot challenge page"
             return name, url, "found", None
         if status == 404:
             return name, url, "not_found", None
@@ -47,6 +59,8 @@ def check_platform(name: str, template: str, mode: str, marker: str | None, user
     if mode == "text_absent":
         if status != 200:
             return name, url, "unknown", f"HTTP {status}"
+        if challenged:
+            return name, url, "unknown", "blocked by an anti-bot challenge page"
         if marker and marker.lower() in body.lower():
             return name, url, "not_found", None
         return name, url, "found", None
