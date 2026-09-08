@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jegeo-payload"
+version = "1.0.0"
+description = "A homemade, Dokkaebi-inspired operator console for Linux — a hologram-styled security toolkit GUI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "voidless026" }]
+dependencies = [
+    "PySide6>=6.6",
+    "cryptography>=41.0",
+    "Pillow>=10.0",
+    "psutil>=5.9",
+]
+
+[project.scripts]
+jegeo = "jegeo.app:main"
+
+[tool.setuptools.packages.find]
+include = ["jegeo*"]
